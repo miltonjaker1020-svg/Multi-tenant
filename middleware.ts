@@ -7,7 +7,7 @@ import { generateId } from './lib/utils';
 
 export const runtime = 'nodejs';
 
-const PUBLIC_PATHS = ['/login', '/register', '/api/auth/login', '/api/auth/register'];
+const PUBLIC_PATHS = ['/login', '/register', '/api/auth/login', '/api/auth/register', '/api/tenants'];
 
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
@@ -49,18 +49,37 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))) {
+  const isProtectedApi = pathname.startsWith('/api/dashboard');
+  const isProtectedPage = pathname.startsWith('/dashboard');
+  const isProtected = isProtectedApi || isProtectedPage;
+
+  if (!isProtected && PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))) {
     return NextResponse.next();
   }
 
-  if (pathname === '/') {
+  if (!isProtected && pathname === '/') {
     return NextResponse.next();
+  }
+
+  if (!isProtected && !pathname.startsWith('/api/dashboard') && !pathname.startsWith('/dashboard')) {
+    if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/')) || pathname === '/') {
+      return NextResponse.next();
+    }
   }
 
   const token = extractTokenFromCookie(request.headers.get('cookie'));
 
   if (!token) {
     requestLogger.warn('No auth token found');
+    if (isProtectedApi) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (isProtectedPage || pathname.startsWith('/dashboard') || pathname.startsWith('/api/dashboard')) {
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      return redirectToLogin(request);
+    }
     return redirectToLogin(request);
   }
 
@@ -68,12 +87,41 @@ export async function middleware(request: NextRequest) {
 
   if (!payload) {
     requestLogger.warn('Invalid or expired token');
+    if (isProtectedApi || pathname.startsWith('/api/dashboard')) {
+      const response = NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      response.cookies.delete('auth_token');
+      return response;
+    }
+    if (isProtectedPage || pathname.startsWith('/dashboard')) {
+      const response = redirectToLogin(request);
+      response.cookies.delete('auth_token');
+      return response;
+    }
     const response = redirectToLogin(request);
     response.cookies.delete('auth_token');
     return response;
   }
 
-  const response = NextResponse.next();
+  const requestHeaders = new Headers(request.headers);
+  if (payload.tenantSchema) {
+    requestHeaders.set('x-tenant-schema', payload.tenantSchema);
+  }
+  if (payload.tenantId) {
+    requestHeaders.set('x-tenant-id', payload.tenantId);
+  }
+  if (payload.tenantSlug) {
+    requestHeaders.set('x-tenant-slug', payload.tenantSlug);
+  }
+  requestHeaders.set('x-user-id', payload.sub);
+  requestHeaders.set('x-user-email', payload.email);
+  requestHeaders.set('x-user-role', payload.role);
+  requestHeaders.set('x-session-id', payload.sessionId);
+
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 
   if (payload.tenantSchema) {
     response.headers.set('x-tenant-schema', payload.tenantSchema);

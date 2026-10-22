@@ -17,7 +17,7 @@ import { InformeIA, CitaEstado } from '../../types';
 @Index(['pacienteId'])
 @Index(['medicoId'])
 @Index(['estado'])
-@Index(['idempotencyKey'], { unique: true, where: '"idempotencyKey" IS NOT NULL' })
+@Index(['idempotencyKey'], { unique: true, where: '"idempotency_key" IS NOT NULL' })
 export class CitaMedica {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -34,7 +34,7 @@ export class CitaMedica {
   @Column({ default: 30 })
   duracion: number;
 
-  @Column({ length: 20, default: CitaEstado.PENDIENTE })
+  @Column({ name: 'estado', length: 20, type: 'varchar', default: CitaEstado.PENDIENTE })
   estado: CitaEstado;
 
   @Column({ name: 'sintomas_paciente', type: 'text' })
@@ -43,7 +43,7 @@ export class CitaMedica {
   @Column({ name: 'observaciones', type: 'text', nullable: true })
   observaciones: string | null;
 
-  @Column({ name: 'idempotency_key', length: 255, nullable: true, unique: true })
+  @Column({ name: 'idempotency_key', length: 255, type: 'varchar', nullable: true, unique: true })
   idempotencyKey: string | null;
 
   @Column({ name: 'informe_ia', type: 'jsonb', nullable: true })

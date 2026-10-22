@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class CreateTenantTemplate1700000000001 implements MigrationInterface {
   name = 'CreateTenantTemplate1700000000001';
@@ -6,7 +6,7 @@ export class CreateTenantTemplate1700000000001 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE "pacientes" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "documento" character varying(20) NOT NULL,
         "nombre" character varying(100) NOT NULL,
         "apellidos" character varying(100) NOT NULL,
@@ -39,7 +39,7 @@ export class CreateTenantTemplate1700000000001 implements MigrationInterface {
 
     await queryRunner.query(`
       CREATE TABLE "medicos" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "dni" character varying(20) NOT NULL,
         "nombre" character varying(100) NOT NULL,
         "apellidos" character varying(100) NOT NULL,
@@ -69,7 +69,7 @@ export class CreateTenantTemplate1700000000001 implements MigrationInterface {
 
     await queryRunner.query(`
       CREATE TABLE "citas_medicas" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "paciente_id" uuid NOT NULL,
         "medico_id" uuid NOT NULL,
         "fecha_hora" TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -121,7 +121,7 @@ export class CreateTenantTemplate1700000000001 implements MigrationInterface {
 
     await queryRunner.query(`
       CREATE TABLE "idempotency_keys" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "key" character varying(255) NOT NULL,
         "tenant_id" character varying(60) NOT NULL,
         "endpoint" character varying(200) NOT NULL,

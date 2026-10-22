@@ -27,13 +27,13 @@ export class User {
   @Column({ length: 100 })
   name: string;
 
-  @Column({ length: 20, default: UserRole.DOCTOR })
+  @Column({ name: 'role', length: 20, type: 'varchar', default: UserRole.DOCTOR })
   role: UserRole;
 
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
-  @Column({ name: 'tenant_id', nullable: true })
+  @Column({ name: 'tenant_id', type: 'uuid', nullable: true })
   tenantId: string | null;
 
   @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true })

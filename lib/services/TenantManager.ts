@@ -1,8 +1,14 @@
 import { QueryRunner, DataSource } from 'typeorm';
-import { initializePublicDataSource, initializeTenantDataSource } from '../config/data-source';
-import { Tenant } from '../entities/public/Tenant';
+import { initializePublicDataSource } from '../config/data-source';
+import { CreateTenantTemplate1700000000001 } from '../migrations/1700000000001-CreateTenantTemplate';
 import { logger } from '../logger';
 import { env } from '../env';
+
+function assertSchemaName(schemaName: string): void {
+  if (!/^[a-z0-9_]+$/.test(schemaName)) {
+    throw new Error(`Nombre de schema inválido: ${schemaName}`);
+  }
+}
 
 export class TenantManager {
   private publicDataSource: DataSource | null = null;
@@ -16,6 +22,8 @@ export class TenantManager {
 
   async createTenantSchema(schemaName: string): Promise<void> {
     logger.info({ schemaName }, 'Creating tenant schema');
+
+    assertSchemaName(schemaName);
 
     const dataSource = await this.getPublicDataSource();
     const queryRunner = dataSource.createQueryRunner();
@@ -34,36 +42,39 @@ export class TenantManager {
   async runTenantMigrations(schemaName: string): Promise<void> {
     logger.info({ schemaName }, 'Running tenant migrations');
 
-    const tenantDataSource = new DataSource({
-      type: 'postgres',
-      url: env.DATABASE_URL_UNPOOLED || env.DATABASE_URL,
-      schema: schemaName,
-      entities: [
-        (await import('../entities/tenant/Paciente')).Paciente,
-        (await import('../entities/tenant/Medico')).Medico,
-        (await import('../entities/tenant/CitaMedica')).CitaMedica,
-        (await import('../entities/tenant/IdempotencyKey')).IdempotencyKey,
-      ],
-      migrations: ['lib/migrations/*.ts'],
-      synchronize: false,
-      logging: env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-      ssl: env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-    });
+    assertSchemaName(schemaName);
+
+    const dataSource = await this.getPublicDataSource();
+    const queryRunner = dataSource.createQueryRunner();
+    await queryRunner.connect();
 
     try {
-      await tenantDataSource.initialize();
-      await tenantDataSource.runMigrations();
+      await queryRunner.startTransaction();
+
+      try {
+        await queryRunner.query(
+          `SET LOCAL search_path TO "${schemaName}", public, extensions`
+        );
+        await new CreateTenantTemplate1700000000001().up(queryRunner);
+        await queryRunner.commitTransaction();
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        throw error;
+      }
+
       logger.info({ schemaName }, 'Tenant migrations completed');
     } catch (error) {
       logger.error({ schemaName, error }, 'Failed to run tenant migrations');
       throw error;
     } finally {
-      await tenantDataSource.destroy();
+      await queryRunner.release();
     }
   }
 
   async seedTenantData(schemaName: string): Promise<void> {
     logger.info({ schemaName }, 'Seeding tenant data');
+
+    assertSchemaName(schemaName);
 
     const tenantDataSource = new DataSource({
       type: 'postgres',
@@ -83,6 +94,8 @@ export class TenantManager {
       await tenantDataSource.initialize();
       const queryRunner = tenantDataSource.createQueryRunner();
       await queryRunner.connect();
+
+      await queryRunner.query(`SET search_path TO "${schemaName}", public, extensions`);
 
       // Create sample data
       const medicoId = await this.createSampleMedico(queryRunner);
@@ -195,6 +208,7 @@ export class TenantManager {
 
   async dropTenantSchema(schemaName: string): Promise<void> {
     logger.warn({ schemaName }, 'Dropping tenant schema');
+    assertSchemaName(schemaName);
     const dataSource = await this.getPublicDataSource();
     await dataSource.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
     logger.info({ schemaName }, 'Tenant schema dropped');

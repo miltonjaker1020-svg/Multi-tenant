@@ -32,10 +32,10 @@ export class Medico {
   @Column({ length: 50, unique: true })
   colegiado: string;
 
-  @Column({ length: 20, nullable: true })
+  @Column({ length: 20, type: 'varchar', nullable: true })
   telefono: string | null;
 
-  @Column({ length: 100, nullable: true, unique: true })
+  @Column({ length: 100, type: 'varchar', nullable: true, unique: true })
   email: string | null;
 
   @Column({ type: 'jsonb', default: '{}' })

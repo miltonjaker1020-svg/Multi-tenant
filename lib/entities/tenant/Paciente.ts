@@ -33,13 +33,13 @@ export class Paciente {
   @Column({ type: 'enum', enum: Sexo })
   sexo: Sexo;
 
-  @Column({ length: 20, nullable: true })
+  @Column({ length: 20, type: 'varchar', nullable: true })
   telefono: string | null;
 
-  @Column({ length: 100, nullable: true, unique: true })
+  @Column({ length: 100, type: 'varchar', nullable: true, unique: true })
   email: string | null;
 
-  @Column({ length: 200, nullable: true })
+  @Column({ length: 200, type: 'varchar', nullable: true })
   direccion: string | null;
 
   @Column({ type: 'text', nullable: true })
